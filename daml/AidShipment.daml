@@ -1,0 +1,48 @@
+module AidShipment where
+
+-- Define the types for aid products, quantity units, recipients, aid shipments, and aid distributions
+data AidType = Medical | Food | Shelter | Other
+  deriving (Eq, Show)
+
+data StandardQuantityUnit = Kilograms | Carats | Meters | SquareMeters | CubicMeters | Liters | KilowatHours | Pieces | Pairs | Dozens | ThousandsPieces | Packs
+  deriving (Eq, Show)
+
+data AidProducts = AidProducts
+  with
+    aidProductId : Text
+    aidType : AidType
+    description : Text 
+    unit : StandardQuantityUnit
+    replacementCost : Decimal
+    lastUpdated : Time
+  deriving (Show, Eq)
+
+data AidShipment = AidShipment
+  with
+    shipmentId : Text
+    contents : Text
+    photos : [Text]
+    owner : Party
+    preparedBy : Party
+    preparedAt : Time
+    dispatchedAt : Time
+    products : [(Decimal, AidProducts)]
+    observers : [Party]
+  deriving (Show, Eq)
+
+data Recipient = Recipient
+  with
+    name : Text
+    address : Text
+    verificationCode : Text
+  deriving (Eq, Show)
+
+data AidDistribution = AidDistribution
+  with
+    quantity : Decimal
+    shipmentId : Text
+    recipient : Party
+    aidWorker : Party
+    timestamp : Time
+    productId : Text
+  deriving (Show, Eq)

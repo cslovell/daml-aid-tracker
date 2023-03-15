@@ -1,0 +1,37 @@
+module AidShipmentRecord where
+
+import DA.Time
+import AidShipment
+
+-- TEMPLATE BEGIN
+template AidShipmentRecord
+  with
+    aidShipment : AidShipment
+    observers: [Party]
+  where
+    signatory aidShipment.owner
+    observer aidShipment.observers ++ observers
+    key aidShipment.preparedBy: Party
+    maintainer key
+    
+    choice CreateAidShipment: ContractId AidShipmentRecord
+      with
+        shipmentContents: Text
+        shipmentPhotos: [Text]
+        productQuantities: [(Decimal, AidProducts)]
+      controller aidShipment.preparedBy
+      do   
+        now <- getTime
+        let newAidShipment = AidShipment
+              with
+                shipmentId = ""
+                contents = shipmentContents
+                photos = shipmentPhotos
+                owner = aidShipment.preparedBy
+                preparedBy = aidShipment.preparedBy
+                preparedAt = now
+                dispatchedAt = now
+                products = productQuantities
+                observers = aidShipment.observers
+        
+        create this with aidShipment = newAidShipment
