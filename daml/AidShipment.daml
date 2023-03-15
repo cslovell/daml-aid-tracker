@@ -1,5 +1,7 @@
 module AidShipment where
 
+import DA.TextMap
+
 -- Define the types for aid products, quantity units, recipients, aid shipments, and aid distributions
 data AidType = Medical | Food | Shelter | Other
   deriving (Eq, Show)
@@ -7,7 +9,7 @@ data AidType = Medical | Food | Shelter | Other
 data StandardQuantityUnit = Kilograms | Carats | Meters | SquareMeters | CubicMeters | Liters | KilowatHours | Pieces | Pairs | Dozens | ThousandsPieces | Packs
   deriving (Eq, Show)
 
-data AidProducts = AidProducts
+data AidProduct = AidProduct
   with
     aidProductId : Text
     aidType : AidType
@@ -26,7 +28,7 @@ data AidShipment = AidShipment
     preparedBy : Party
     preparedAt : Time
     dispatchedAt : Time
-    products : [(Decimal, AidProducts)]
+    products : TextMap (Decimal, AidProduct)
     observers : [Party]
   deriving (Show, Eq)
 

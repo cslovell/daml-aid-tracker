@@ -1,37 +1,60 @@
 module AidShipmentRecord where
 
-import DA.Time
+import DA.Map (Map)
+import DA.Optional (isSome, fromSomeNote)
 import AidShipment
+import DA.TextMap (TextMap)
+import DA.TextMap qualified as TextMap
 
--- TEMPLATE BEGIN
 template AidShipmentRecord
   with
-    aidShipment : AidShipment
-    observers: [Party]
+    aidWorker: Party
+    observer: Party
+    shipment: AidShipment
+    distributedProducts: Map Text AidDistribution
   where
-    signatory aidShipment.owner
-    observer aidShipment.observers ++ observers
-    key aidShipment.preparedBy: Party
-    maintainer key
-    
-    choice CreateAidShipment: ContractId AidShipmentRecord
+    signatory aidWorker
+    observer observer
+
+    key (aidWorker, shipment) : (Party, AidShipment)
+    maintainer key._1
+
+    -- Add an AidProduct to the AidShipment
+    choice AddAidProductToShipment: ContractId AidShipmentRecord
       with
-        shipmentContents: Text
-        shipmentPhotos: [Text]
-        productQuantities: [(Decimal, AidProducts)]
-      controller aidShipment.preparedBy
-      do   
-        now <- getTime
-        let newAidShipment = AidShipment
-              with
-                shipmentId = ""
-                contents = shipmentContents
-                photos = shipmentPhotos
-                owner = aidShipment.preparedBy
-                preparedBy = aidShipment.preparedBy
-                preparedAt = now
-                dispatchedAt = now
-                products = productQuantities
-                observers = aidShipment.observers
-        
-        create this with aidShipment = newAidShipment
+        aidProduct: AidProduct
+      controller aidWorker
+      do
+        let productKey = productId aidProduct
+            updatedShipment = addAidProductToShipment shipment productKey aidProduct
+        create this with shipment = updatedShipment
+
+    -- Create an AidDistribution from the AidShipment
+    choice DistributeAid: ContractId AidShipmentRecord
+      with
+        distribution: AidDistribution
+      controller aidWorker
+      do
+        let productKey = aidProductId distribution
+            quantityToDistribute = quantity distribution
+            updatedShipment = updateAidShipment shipment productKey (subtractQuantity quantityToDistribute)
+        assertMsg "Insufficient quantity of product in shipment." (isSome updatedShipment)
+        create this with shipment = fromSomeNote "updatedShipment" updatedShipment; distributedProducts = newDistributedProducts
+
+-- Helper functions
+addAidProductToShipment : AidShipment -> Text -> Decimal -> AidProduct -> AidShipment
+addAidProductToShipment shipment key quantity aidProduct =
+  let updatedProducts = TextMap.insert key (quantity, aidProduct) (products shipment)
+  in shipment with products = updatedProducts
+
+updateAidShipment : AidShipment -> Text -> (Optional (Decimal, AidProduct) -> Optional (Decimal, AidProduct)) -> Optional AidShipment
+updateAidShipment (AidShipment shipmentId contents photos owner preparedBy preparedAt dispatchedAt products observers) key f =
+  let updatedProduct = f (TextMap.lookup key products)
+  in if isSome updatedProduct
+     then Some (AidShipment shipmentId contents photos owner preparedBy preparedAt dispatchedAt (TextMap.insert key (fromSomeNote "updatedProduct" updatedProduct) products) observers)
+     else None
+
+subtractQuantity : Int -> Optional AidProduct -> Optional AidProduct
+subtractQuantity qty (Some p) = if newQuantity >= 0 then Some p { quantity = newQuantity } else None
+  where newQuantity = p.quantity - qty
+subtractQuantity _ None = None
